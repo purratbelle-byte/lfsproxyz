@@ -1,0 +1,45 @@
+name: Build signed APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install SDK
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Generate Gradle wrapper
+        run: gradle wrapper --gradle-version 8.7
+
+      - name: Generate temporary signing key
+        run: |
+          keytool -genkeypair -v -keystore release.keystore -alias release -keyalg RSA -keysize 2048 -validity 10000 -storepass changeit -keypass changeit -dname "CN=LFS Recovery Engine, OU=App, O=LFS, L=India, C=IN"
+
+      - name: Build release APK
+        run: ./gradlew assembleRelease
+
+      - name: Sign release APK
+        run: |
+          $ANDROID_HOME/build-tools/35.0.0/apksigner sign --ks release.keystore --ks-pass pass:changeit --key-pass pass:changeit --out app-release-signed.apk app/build/outputs/apk/release/app-release-unsigned.apk
+          $ANDROID_HOME/build-tools/35.0.0/apksigner verify --verbose app-release-signed.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: LFS-RecoveryEngine-Signed-APK
+          path: app-release-signed.apk

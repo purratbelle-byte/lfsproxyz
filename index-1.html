@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#03060c" />
+<title>Recovery Engine — Demo</title>
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{margin:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#03060c;color:#dbe7ff;min-height:100dvh;overflow-x:hidden;position:relative;touch-action:manipulation;}
+  .bg{position:fixed;inset:0;z-index:0;pointer-events:none;}
+  .bg-radial{background:radial-gradient(120% 62% at 50% -12%, rgba(30,110,190,.55), transparent 62%),radial-gradient(85% 48% at 108% 108%, rgba(34,211,238,.14), transparent 66%),radial-gradient(85% 48% at -8% 96%, rgba(124,58,237,.20), transparent 66%);}
+  .bg-grid{background-image:linear-gradient(rgba(110,160,255,.075) 1px, transparent 1px),linear-gradient(90deg, rgba(110,160,255,.075) 1px, transparent 1px);background-size:44px 44px;-webkit-mask-image:radial-gradient(120% 80% at 50% 20%, #000 0%, transparent 78%);mask-image:radial-gradient(120% 80% at 50% 20%, #000 0%, transparent 78%);animation:gridmove 7s linear infinite;}
+  @keyframes gridmove{ to{ background-position:0 44px, 44px 0; } }
+  .bg-rain{background-image:repeating-linear-gradient(90deg,transparent 0px, transparent 46px,rgba(55,208,255,.055) 46px, rgba(55,208,255,.055) 47px);animation:rainmove 4.5s linear infinite;opacity:.7;-webkit-mask-image:linear-gradient(180deg,transparent, #000 35%, #000 65%, transparent);mask-image:linear-gradient(180deg,transparent, #000 35%, #000 65%, transparent);}
+  @keyframes rainmove{ to{ transform:translateX(47px); } }
+  #flash{position:fixed;inset:0;z-index:9;pointer-events:none;opacity:0;background:radial-gradient(circle at 50% 35%, rgba(34,197,94,.32), transparent 62%);transition:opacity .22s ease;}
+  #flash.on{opacity:1;}
+  .app{position:relative;z-index:1;max-width:520px;margin:0 auto;padding:14px 14px calc(18px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:11px;min-height:100dvh;}
+  .panel{background:linear-gradient(180deg, rgba(14,22,40,.88), rgba(7,11,22,.94));border:1px solid rgba(96,146,255,.16);border-radius:18px;box-shadow:0 14px 34px rgba(0,0,0,.65), inset 0 1px 0 rgba(255,255,255,.05);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);position:relative;overflow:hidden;}
+  .panel::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(55,208,255,.55),transparent);opacity:.7;}
+  .top{display:flex;align-items:center;gap:10px;padding:2px 4px 0;}
+  .logo{width:38px;height:38px;display:grid;place-items:center;position:relative;filter:drop-shadow(0 4px 14px rgba(51,117,187,.6));flex:0 0 auto;}
+  .logo svg{width:100%;height:100%;}
+  .logo::after{content:'';position:absolute;inset:-4px;border-radius:50%;border:1px solid rgba(55,208,255,.4);animation:ring 2.6s ease-out infinite;}
+  @keyframes ring{ 0%{transform:scale(.85);opacity:.9;} 100%{transform:scale(1.35);opacity:0;} }
+  .brand{font-size:13px;font-weight:800;letter-spacing:1.5px;line-height:1.15;}
+  .brand small{display:block;font-size:8px;letter-spacing:2.4px;color:#7d8cad;font-weight:700;margin-top:3px;}
+  .lfs-x{margin-left:auto;font-size:17px;font-weight:900;letter-spacing:2px;color:#37d0ff;text-shadow:0 0 14px rgba(55,208,255,.55);padding:6px 12px;border-radius:11px;background:rgba(55,208,255,.08);border:1px solid rgba(55,208,255,.32);line-height:1;flex:0 0 auto;}
+  .stats{padding:14px 16px 13px;}
+  .scan-status{display:flex;align-items:center;gap:7px;font-size:9px;letter-spacing:2.4px;font-weight:800;color:#7d8cad;}
+  .dot{width:7px;height:7px;border-radius:50%;background:#4b5a7a;box-shadow:0 0 8px #4b5a7a;transition:.2s;}
+  .dot.live{background:#22c55e;box-shadow:0 0 12px #22c55e;animation:pulse 1s ease-in-out infinite;}
+  @keyframes pulse{50%{opacity:.3;}}
+  .count{font-size:clamp(28px,10.5vw,44px);font-weight:900;letter-spacing:-1.4px;line-height:1.05;margin-top:8px;font-variant-numeric:tabular-nums;background:linear-gradient(180deg,#ffffff 0%,#9ec8ff 100%);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 0 36px rgba(80,150,255,.35);}
+  .count-label{font-size:8.5px;letter-spacing:2.4px;color:#6d7c9c;font-weight:800;margin-top:5px;}
+  .speed-row{display:flex;gap:14px;margin-top:11px;padding-top:10px;border-top:1px solid rgba(96,146,255,.12);font-size:9px;letter-spacing:1.3px;color:#6d7c9c;font-weight:700;align-items:center;}
+  .speed-row b{color:#37d0ff;font-weight:800;}
+  .speed-row .net b{color:#4ade80;}
+  .net-bar{display:inline-block;width:34px;height:4px;border-radius:2px;background:rgba(74,222,128,.15);overflow:hidden;vertical-align:middle;margin-left:2px;position:relative;}
+  .net-bar i{display:block;height:100%;width:60%;border-radius:2px;background:linear-gradient(90deg,#4ade80,#22c55e);box-shadow:0 0 6px rgba(74,222,128,.7);transition:width .25s ease;}
+  .live-status{display:flex;align-items:center;gap:5px;color:#4ade80;font-weight:800;letter-spacing:1.3px;}
+  .live-status i{width:6px;height:6px;border-radius:50%;background:#4ade80;box-shadow:0 0 8px #4ade80;animation:pulse 1s ease-in-out infinite;font-style:normal;flex:0 0 auto;}
+  .matrix-head{display:flex;align-items:center;justify-content:space-between;padding:11px 14px 8px;font-size:8.5px;letter-spacing:2.1px;font-weight:800;color:#7d8cad;}
+  .matrix-head .lbl{display:flex;align-items:center;gap:6px;color:#9fe9ff;}
+  .matrix-head .lbl i{width:5px;height:5px;border-radius:50%;background:#37d0ff;box-shadow:0 0 8px #37d0ff;animation:pulse 1s infinite;font-style:normal;}
+  .matrix-head .pill{font-size:7.5px;letter-spacing:1.3px;padding:3px 8px;border-radius:999px;background:rgba(55,208,255,.10);border:1px solid rgba(55,208,255,.25);color:#37d0ff;}
+  .crypto-row{display:flex;align-items:center;justify-content:space-between;gap:4px;margin:2px 12px 0;padding:12px 8px;border-radius:12px;background:rgba(0,0,0,.28);border:1px solid rgba(96,146,255,.12);}
+  .coin{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;}
+  .coin-badge{width:36px;height:36px;display:grid;place-items:center;filter:drop-shadow(0 3px 8px rgba(0,0,0,.55));animation:coinFloat 2.6s ease-in-out infinite;}
+  .coin-badge svg{ width:100%;height:100%;display:block; }
+  .coin:nth-child(1) .coin-badge{animation-delay:.0s;}
+  .coin:nth-child(2) .coin-badge{animation-delay:.35s;}
+  .coin:nth-child(3) .coin-badge{animation-delay:.7s;}
+  .coin:nth-child(4) .coin-badge{animation-delay:1.05s;}
+  .coin:nth-child(5) .coin-badge{animation-delay:1.4s;}
+  .coin:nth-child(6) .coin-badge{animation-delay:1.75s;}
+  @keyframes coinFloat{0%,100%{transform:translateY(0);}50%{transform:translateY(-3px);}}
+  .coin-name{font-size:7px;letter-spacing:1.2px;font-weight:800;color:#8ea8d0;white-space:nowrap;}
+  .stream-wrap{position:relative;margin:12px 12px 0;height:132px;border-radius:12px;background:rgba(0,0,0,.35);border:1px solid rgba(96,146,255,.14);overflow:hidden;}
+  .stream-wrap::after{content:'';position:absolute;top:0;bottom:0;width:22%;background:linear-gradient(90deg,transparent,rgba(55,208,255,.10),transparent);animation:beam 2.4s linear infinite;pointer-events:none;z-index:2;}
+  @keyframes beam{0%{left:-25%;}100%{left:105%;}}
+  .stream-inner{position:absolute;top:0;left:0;right:0;}
+  .stream-line-item{height:22px;line-height:22px;padding:0 11px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;letter-spacing:.3px;color:#9fe9ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:22px;}
+  .hex-row{margin:9px 12px 0;display:flex;align-items:center;gap:8px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:9px;letter-spacing:.5px;color:#4f7fa8;padding:6px 9px;background:rgba(0,0,0,.28);border:1px solid rgba(96,146,255,.10);border-radius:9px;overflow:hidden;}
+  .hex-row .k{color:#37d0ff;font-weight:700;letter-spacing:1.2px;}
+  .hex-row .v{color:#6fe3b0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
+  .scan-body{padding-bottom:12px;}
+  .prog{margin:9px 12px 0;height:3px;border-radius:3px;background:rgba(96,146,255,.12);overflow:hidden;}
+  .prog i{display:block;height:100%;width:0%;background:linear-gradient(90deg,#37d0ff,#4ade80);box-shadow:0 0 10px rgba(55,208,255,.7);transition:width .12s linear;}
+  .controls{display:flex;gap:10px;}
+  .btn{flex:1;border:none;border-radius:15px;padding:15px 10px;font-family:inherit;font-size:12.5px;font-weight:900;letter-spacing:1.8px;cursor:pointer;transition:transform .1s, opacity .2s, box-shadow .2s;position:relative;overflow:hidden;}
+  .btn:active{transform:scale(.965);}
+  .btn:disabled{opacity:.28;box-shadow:none!important;cursor:not-allowed;}
+  .btn-start{background:linear-gradient(180deg,#2ee07e,#0f9e50);color:#03170c;box-shadow:0 10px 26px rgba(34,197,94,.35), inset 0 1px 0 rgba(255,255,255,.45);}
+  .btn-stop{background:linear-gradient(180deg,#ff5f73,#c81f3a);color:#fff;box-shadow:0 10px 26px rgba(255,60,95,.30), inset 0 1px 0 rgba(255,255,255,.25);pointer-events:none;}
+  .found-head{display:flex;align-items:center;justify-content:space-between;padding:12px 15px 9px;font-size:8.5px;letter-spacing:2.1px;font-weight:800;color:#7d8cad;}
+  .found-head .cnt{font-size:8.5px;padding:3px 9px;border-radius:999px;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);color:#4ade80;font-weight:800;}
+  .found-summary{display:flex;gap:6px;flex-wrap:wrap;padding:0 14px 10px;border-bottom:1px solid rgba(96,146,255,.10);margin:0 0 10px;}
+  .found-summary:empty{display:none;border-bottom:none;margin:0;padding:0;}
+  #foundList{padding:0 12px 12px;display:flex;flex-direction:column;gap:9px;max-height:280px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+  #foundList::-webkit-scrollbar{width:3px;}
+  #foundList::-webkit-scrollbar-thumb{background:rgba(96,146,255,.3);border-radius:9px;}
+  .empty{text-align:center;padding:34px 12px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;letter-spacing:3px;font-weight:800;color:#4f7fa8;line-height:1.6;}
+  .empty::before{content:'⌁';display:block;font-size:22px;margin-bottom:8px;color:#2a4463;}
+
+  .connecting{position:fixed;inset:0;z-index:150;display:grid;place-items:center;background:radial-gradient(circle at 50% 50%, rgba(6,14,30,.99), rgba(3,6,12,1));-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);padding:20px;opacity:0;pointer-events:none;visibility:hidden;transition:opacity .3s ease;}
+  .connecting.show{opacity:1;pointer-events:auto;visibility:visible;}
+  .connecting-box{width:100%;max-width:320px;text-align:center;animation:connectPop .4s cubic-bezier(.2,1.2,.4,1);}
+  @keyframes connectPop{from{opacity:0;transform:scale(.9);}to{opacity:1;transform:none;}}
+  .connect-spinner{width:96px;height:96px;margin:0 auto 24px;position:relative;}
+  .connect-ring{position:absolute;inset:0;border-radius:50%;border:3px solid transparent;border-top-color:#37d0ff;border-right-color:rgba(55,208,255,.4);animation:spin 1s linear infinite;}
+  .connect-ring.r2{inset:14px;border-top-color:#4ade80;border-right-color:rgba(74,222,128,.3);animation:spin 1.5s linear infinite reverse;border-width:2px;}
+  .connect-ring.r3{inset:28px;border-top-color:#5b9dff;border-right-color:rgba(91,157,255,.3);animation:spin 2s linear infinite;border-width:2px;}
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  .connect-dot{position:absolute;top:50%;left:50%;width:14px;height:14px;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle, #37d0ff, #1e6fa8);box-shadow:0 0 24px rgba(55,208,255,.9), 0 0 46px rgba(55,208,255,.4);animation:dotPulse 1.2s ease-in-out infinite;}
+  @keyframes dotPulse{0%,100%{ transform:translate(-50%,-50%) scale(1); opacity:1; }50%{ transform:translate(-50%,-50%) scale(1.25); opacity:.75; }}
+  .connect-title{font-size:14px;letter-spacing:3px;font-weight:900;color:#9fe9ff;margin-bottom:10px;text-shadow:0 0 16px rgba(55,208,255,.55);}
+  .connect-status{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:10.5px;letter-spacing:1.8px;font-weight:700;color:#6d7c9c;min-height:18px;animation:blinkText 1.6s ease-in-out infinite;}
+  @keyframes blinkText{0%,100%{ opacity:1; }50%{ opacity:.5; }}
+  .connect-bar{margin-top:22px;height:3px;border-radius:3px;background:rgba(96,146,255,.12);overflow:hidden;}
+  .connect-bar i{display:block;height:100%;width:0%;background:linear-gradient(90deg,#37d0ff,#4ade80,#37d0ff);background-size:200% 100%;animation:barShift 1.2s linear infinite;border-radius:3px;transition:width .3s ease;}
+  @keyframes barShift{0%{ background-position:0% 0; }100%{ background-position:200% 0; }}
+
+  .net-error{position:fixed;inset:0;z-index:300;display:grid;place-items:center;background:rgba(2,4,10,.94);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);padding:20px;opacity:0;pointer-events:none;visibility:hidden;transition:opacity .25s ease;}
+  .net-error.show{opacity:1;pointer-events:auto;visibility:visible;}
+  .net-box{width:100%;max-width:340px;background:linear-gradient(180deg, rgba(30,14,20,.98), rgba(11,5,8,1));border:1px solid rgba(255,95,115,.42);border-radius:18px;padding:28px 22px 22px;text-align:center;position:relative;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.9), 0 0 46px rgba(255,95,115,.18);}
+  .net-box::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,95,115,.8),transparent);}
+  .net-icon{width:64px;height:64px;margin:0 auto 16px;display:grid;place-items:center;border-radius:50%;background:rgba(255,95,115,.14);border:1px solid rgba(255,95,115,.45);color:#ff5f73;box-shadow:0 0 32px rgba(255,95,115,.25);animation:netPulse 1.6s ease-in-out infinite;}
+  @keyframes netPulse{0%,100%{ transform:scale(1); box-shadow:0 0 32px rgba(255,95,115,.25); }50%{ transform:scale(1.06); box-shadow:0 0 46px rgba(255,95,115,.5); }}
+  .net-title{font-size:14px;letter-spacing:2.6px;font-weight:900;color:#ff5f73;margin-bottom:8px;text-shadow:0 0 16px rgba(255,95,115,.5);}
+  .net-text{font-size:10.5px;letter-spacing:1.4px;color:#9aa7c2;font-weight:700;line-height:1.8;margin-bottom:20px;}
+  .net-btn{width:100%;border:none;border-radius:12px;padding:13px;background:linear-gradient(180deg,#ff5f73,#c81f3a);color:#fff;font-family:inherit;font-size:12px;font-weight:900;letter-spacing:2.4px;cursor:pointer;box-shadow:0 10px 26px rgba(255,60,95,.35), inset 0 1px 0 rgba(255,255,255,.2);transition:transform .1s;}
+  .net-btn:active{transform:scale(.97);}
+
+  .popup-overlay{position:fixed;inset:0;z-index:200;display:grid;place-items:center;background:rgba(0,0,0,.85);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);padding:20px;opacity:0;pointer-events:none;transition:opacity .25s ease;}
+  .popup-overlay.show{opacity:1;pointer-events:auto;}
+  .popup-box{width:100%;max-width:340px;background:linear-gradient(180deg, rgba(14,22,40,.98), rgba(7,11,22,1));border-radius:18px;padding:26px 22px 20px;text-align:center;position:relative;overflow:hidden;animation:popupPop .35s cubic-bezier(.2,1.2,.4,1);}
+  @keyframes popupPop{from{opacity:0;transform:scale(.9) translateY(10px);}to{opacity:1;transform:none;}}
+  .popup-box::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;}
+  .popup-icon{width:58px;height:58px;margin:0 auto 14px;display:grid;place-items:center;border-radius:50%;font-size:26px;font-weight:900;}
+
+  .premium-box{border:1px solid rgba(255,186,72,.42);box-shadow:0 24px 60px rgba(0,0,0,.9), 0 0 46px rgba(255,186,72,.18);}
+  .premium-box::before{background:linear-gradient(90deg,transparent,rgba(255,186,72,.8),transparent);}
+  .premium-box .popup-icon{background:rgba(255,186,72,.14);border:1px solid rgba(255,186,72,.45);color:#ffc861;text-shadow:0 0 18px rgba(255,200,97,.7);box-shadow:0 0 30px rgba(255,186,72,.22);}
+  .premium-title{font-size:13px;letter-spacing:2.2px;font-weight:900;color:#ffc861;margin-bottom:8px;text-shadow:0 0 16px rgba(255,200,97,.4);}
+  .premium-text{font-size:10px;letter-spacing:1.4px;color:#7d8cad;font-weight:700;margin-bottom:16px;line-height:1.7;}
+  .premium-input{width:100%;background:rgba(0,0,0,.45);border:1px solid rgba(255,186,72,.28);border-radius:12px;padding:13px 14px;color:#ffdca0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:14px;font-weight:800;letter-spacing:3px;text-align:center;outline:none;text-transform:uppercase;transition:border-color .2s, box-shadow .2s;}
+  .premium-input::placeholder{color:#5a4a2e;letter-spacing:2px;font-weight:700;font-size:11px;text-transform:none;}
+  .premium-input:focus{border-color:rgba(255,186,72,.75);box-shadow:0 0 0 3px rgba(255,186,72,.12);}
+  .premium-claim{position:relative;width:100%;margin-top:11px;border:none;border-radius:12px;padding:13px;background:linear-gradient(180deg,#ffc861,#d68f1e);color:#2a1a02;font-family:inherit;font-size:12px;font-weight:900;letter-spacing:2.4px;cursor:pointer;box-shadow:0 10px 26px rgba(255,186,72,.35), inset 0 1px 0 rgba(255,255,255,.4);transition:transform .1s, opacity .2s;display:flex;align-items:center;justify-content:center;gap:9px;min-height:44px;}
+  .premium-claim:active{transform:scale(.97);}
+  .premium-claim:disabled{cursor:wait;opacity:.85;}
+  .premium-claim .btn-spinner{display:none;width:16px;height:16px;border:2.5px solid rgba(42,26,2,.3);border-top-color:#2a1a02;border-radius:50%;animation:btnSpin .7s linear infinite;flex:0 0 auto;}
+  .premium-claim.loading .btn-spinner{display:block;}
+  .premium-claim.loading .btn-label{display:none;}
+  @keyframes btnSpin{ to{ transform:rotate(360deg); } }
+  .premium-error{margin-top:10px;min-height:14px;font-size:10px;letter-spacing:1.8px;font-weight:800;color:#ff5f73;text-shadow:0 0 12px rgba(255,95,115,.4);}
+
+  .session-box{border:1px solid rgba(34,197,94,.42);box-shadow:0 24px 60px rgba(0,0,0,.9), 0 0 46px rgba(34,197,94,.18);}
+  .session-box::before{background:linear-gradient(90deg,transparent,rgba(34,197,94,.8),transparent);}
+  .session-box .popup-icon{background:rgba(34,197,94,.14);border:1px solid rgba(34,197,94,.45);color:#4ade80;text-shadow:0 0 18px rgba(74,222,128,.7);box-shadow:0 0 30px rgba(34,197,94,.22);}
+  .session-title{font-size:13px;letter-spacing:2.2px;font-weight:900;color:#4ade80;margin-bottom:6px;text-shadow:0 0 16px rgba(74,222,128,.4);}
+  .session-text{font-size:10px;letter-spacing:1.4px;color:#7d8cad;font-weight:700;margin-bottom:16px;line-height:1.7;}
+
+  /* ================= TELEGRAM USERNAME CARD (NEW) ================= */
+  .tg-card{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    width:100%;
+    background:linear-gradient(180deg, rgba(43,156,240,.16), rgba(26,122,212,.10));
+    border:1px solid rgba(43,156,240,.42);
+    border-radius:12px;
+    padding:12px 12px 12px 14px;
+    margin-bottom:4px;
+  }
+  .tg-left{display:flex;align-items:center;gap:10px;min-width:0;flex:1;}
+  .tg-icon{
+    width:36px;height:36px;flex:0 0 auto;
+    display:grid;place-items:center;
+    border-radius:50%;
+    background:linear-gradient(180deg,#2b9cf0,#1a7ad4);
+    color:#fff;
+    box-shadow:0 4px 12px rgba(43,156,240,.5), inset 0 1px 0 rgba(255,255,255,.3);
+  }
+  .tg-icon svg{width:20px;height:20px;display:block;}
+  .tg-info{min-width:0;text-align:left;}
+  .tg-label{font-size:7.5px;letter-spacing:1.8px;color:#7d8cad;font-weight:800;margin-bottom:3px;}
+  .tg-name{
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:14px;font-weight:900;letter-spacing:.5px;
+    color:#5db4ff;
+    text-shadow:0 0 12px rgba(93,180,255,.4);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .tg-copy{
+    flex:0 0 auto;
+    display:flex;align-items:center;gap:5px;
+    background:linear-gradient(180deg,#37d0ff,#1a7ad4);
+    color:#031622;
+    border:none;
+    border-radius:9px;
+    padding:9px 12px;
+    font-family:inherit;font-size:10px;font-weight:900;letter-spacing:1.6px;
+    cursor:pointer;
+    box-shadow:0 6px 16px rgba(55,208,255,.35), inset 0 1px 0 rgba(255,255,255,.4);
+    transition:transform .1s, background .2s;
+    white-space:nowrap;
+  }
+  .tg-copy:active{transform:scale(.95);}
+  .tg-copy svg{width:12px;height:12px;display:block;}
+  .tg-copy.ok{
+    background:linear-gradient(180deg,#2ee07e,#0f9e50);
+    color:#03170c;
+    box-shadow:0 6px 16px rgba(34,197,94,.4), inset 0 1px 0 rgba(255,255,255,.4);
+  }
+
+  .or-divider{display:flex;align-items:center;gap:10px;margin:16px 0 12px;color:#5b6a8a;font-size:8.5px;letter-spacing:2.4px;font-weight:800;}
+  .or-divider::before, .or-divider::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,transparent,rgba(96,146,255,.28),transparent);}
+
+  .claim-row{display:flex;gap:8px;align-items:stretch;}
+  .claim-input{flex:1;min-width:0;background:rgba(0,0,0,.45);border:1px solid rgba(96,146,255,.28);border-radius:10px;padding:11px 12px;color:#dbe7ff;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;font-weight:800;letter-spacing:2px;text-align:center;outline:none;text-transform:uppercase;transition:border-color .2s, box-shadow .2s;}
+  .claim-input::placeholder{color:#3d4d68;letter-spacing:1.5px;font-weight:700;font-size:10px;text-transform:none;}
+  .claim-input:focus{border-color:rgba(55,208,255,.65);box-shadow:0 0 0 3px rgba(55,208,255,.12);}
+  .claim-btn{border:none;border-radius:10px;padding:0 16px;background:linear-gradient(180deg,#37d0ff,#1a7ad4);color:#031622;font-family:inherit;font-size:11px;font-weight:900;letter-spacing:1.8px;cursor:pointer;box-shadow:0 6px 16px rgba(55,208,255,.35), inset 0 1px 0 rgba(255,255,255,.4);transition:transform .1s;white-space:nowrap;}
+  .claim-btn:active{transform:scale(.96);}
+  .claim-error{margin-top:8px;min-height:13px;font-size:9.5px;letter-spacing:1.6px;font-weight:800;color:#ff5f73;text-shadow:0 0 10px rgba(255,95,115,.4);}
+
+  .popup-close{margin-top:12px;width:100%;background:transparent;border:1px solid rgba(96,146,255,.28);color:#9aa7c2;border-radius:10px;padding:11px;font-family:inherit;font-size:11px;font-weight:900;letter-spacing:2px;cursor:pointer;transition:background .2s, color .2s, border-color .2s, transform .1s;}
+  .popup-close:active{transform:scale(.97);background:rgba(96,146,255,.12);color:#dbe7ff;border-color:rgba(96,146,255,.5);}
+
+  .activated-overlay{position:absolute;inset:0;background:rgba(10,26,16,.97);display:grid;place-items:center;opacity:0;pointer-events:none;transition:opacity .25s ease;z-index:10;border-radius:18px;}
+  .activated-overlay.show{opacity:1;pointer-events:auto;}
+  .activated-content{text-align:center;animation:activatePulse .55s cubic-bezier(.2,1.4,.4,1);}
+  @keyframes activatePulse{from{transform:scale(.7);opacity:0;}to{transform:scale(1);opacity:1;}}
+  .activated-check{width:64px;height:64px;margin:0 auto 12px;display:grid;place-items:center;border-radius:50%;background:rgba(34,197,94,.16);border:1px solid rgba(34,197,94,.5);color:#4ade80;font-size:32px;font-weight:900;text-shadow:0 0 22px rgba(74,222,128,.8);box-shadow:0 0 40px rgba(34,197,94,.3);}
+  .activated-text{font-size:14px;letter-spacing:3px;font-weight:900;color:#4ade80;text-shadow:0 0 16px rgba(74,222,128,.5);}
+</style>
+</head>
+<body>
+
+<div class="bg bg-radial"></div>
+<div class="bg bg-grid"></div>
+<div class="bg bg-rain"></div>
+<div id="flash"></div>
+
+<div class="app">
+  <header class="top">
+    <div class="logo">
+      <svg viewBox="0 0 24 24" fill="none">
+        <path d="M12 2.4 4.4 5.4v6.1c0 4.7 3.2 9 7.6 10.1 4.4-1.1 7.6-5.4 7.6-10.1V5.4L12 2.4Z" fill="url(#g1)" stroke="rgba(255,255,255,.28)" stroke-width=".7"/>
+        <path d="m8.5 12.1 2.4 2.4 4.7-4.8" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+        <defs><linearGradient id="g1" x1="4" y1="2" x2="20" y2="22"><stop stop-color="#5b9dff"/><stop offset="1" stop-color="#1b4fa8"/></linearGradient></defs>
+      </svg>
+    </div>
+    <div class="brand">RECOVERY ENGINE<small>NEURAL SEED SCANNER v4.2</small></div>
+    <div class="lfs-x">LFS X</div>
+  </header>
+
+  <section class="panel stats">
+    <div class="scan-status"><span class="dot" id="dot"></span><span id="status">ENGINE PRO</span></div>
+    <div class="count" id="count">0</div>
+    <div class="count-label">WALLETS SCANNED</div>
+    <div class="speed-row">
+      <span class="net">NET <b id="netSpeed">0</b> KB/s
+        <span class="net-bar"><i id="netBar"></i></span>
+      </span>
+      <span class="live-status"><i></i>STATUS LIVE</span>
+      <span>MODE <b>DEEP</b></span>
+    </div>
+  </section>
+
+  <section class="panel scan-body">
+    <div class="matrix-head"><span class="lbl"><i></i>SCANNING...</span><span class="pill">BIP-39</span></div>
+    <div class="crypto-row">
+      <div class="coin"><div class="coin-badge"><svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="16" fill="#F7931A"/><path d="M22.6 14.1c.3-2-1.2-3-3.3-3.7l.7-2.7-1.7-.4-.7 2.6c-.4-.1-.9-.2-1.4-.3l.7-2.7-1.7-.4-.7 2.7c-.3-.1-.7-.2-1-.2L10.6 9.1l-.4 1.8s1.2.3 1.2.3c.7.2.8.6.8.9l-1.8 7.1c-.1.2-.3.5-.8.4 0 0-1.2-.3-1.2-.3l-.9 1.9 2.2.5c.4.1.8.2 1.2.3l-.7 2.8 1.7.4.7-2.7c.5.1.9.2 1.4.3l-.7 2.7 1.7.4.7-2.8c2.9.5 5.1.3 6-2.3.7-2.1 0-3.3-1.5-4.1 1.1-.3 1.9-1 2.1-2.5zm-3.9 5.4c-.5 2.1-4.1 1-5.2.7l.9-3.8c1.1.3 4.8.8 4.3 3.1zm.5-5.4c-.5 1.9-3.5.9-4.4.7l.9-3.5c1 .2 4 .7 3.5 2.8z" fill="#fff"/></svg></div><div class="coin-name">BTC</div></div>
+      <div class="coin"><div class="coin-badge"><svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="16" fill="#627EEA"/><path d="M16 4v8.87l7.5 3.35z" fill="#fff" fill-opacity=".6"/><path d="M16 4 8.5 16.22l7.5-3.35z" fill="#fff"/><path d="M16 21.97V28l7.5-10.38z" fill="#fff" fill-opacity=".6"/><path d="M16 28v-6.03l-7.5-4.35z" fill="#fff"/><path d="m16 20.57 7.5-4.35-7.5-3.35z" fill="#fff" fill-opacity=".2"/><path d="M8.5 16.22 16 20.57v-6.7z" fill="#fff" fill-opacity=".6"/></svg></div><div class="coin-name">ETH</div></div>
+      <div class="coin"><div class="coin-badge"><svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="16" fill="#F3BA2F"/><path d="M12.2 16 16 12.2 19.8 16 16 19.8z" fill="#fff"/><path d="M16 8.4 18.6 11 16 13.6 13.4 11z" fill="#fff"/><path d="M16 18.4 18.6 21 16 23.6 13.4 21z" fill="#fff"/><path d="M8.4 16 11 13.4 13.6 16 11 18.6z" fill="#fff"/><path d="M18.4 16 21 13.4 23.6 16 21 18.6z" fill="#fff"/></svg></div><div class="coin-name">BNB</div></div>
+      <div class="coin"><div class="coin-badge"><svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="solg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#9945FF"/><stop offset="100%" stop-color="#14F195"/></linearGradient></defs><circle cx="16" cy="16" r="16" fill="#0B0B14"/><path d="M9.2 21.1h13.6l-2.9 2.7H6.3z" fill="url(#solg)"/><path d="M6.3 14.65h13.6l2.9 2.7H9.2z" fill="url(#solg)"/><path d="M9.2 8.2h13.6l-2.9 2.7H6.3z" fill="url(#solg)"/></svg></div><div class="coin-name">SOL</div></div>
+      <div class="coin"><div class="coin-badge"><svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="16" fill="#345D9D"/><path d="M18.9 6.4h-5.1l-2.6 11-2.5.75-.55 2.2 2.5-.75-.7 3h11.2l.7-3h-8.2l.55-2.4 2.5-.75.55-2.2-2.5.75 2.65-8.6z" fill="#fff"/></svg></div><div class="coin-name">LTC</div></div>
+      <div class="coin"><div class="coin-badge"><svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="dgg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#D9B93C"/><stop offset="100%" stop-color="#A07F1F"/></linearGradient></defs><circle cx="16" cy="16" r="16" fill="url(#dgg)"/><path d="M11.5 7.5h5c3.9 0 6.5 2.7 6.5 7.5s-2.6 7.5-6.5 7.5h-5v-5h-2v-2h2v-4h-2v-2h2zm2.5 2v4h3.5c1.3 0 2.2-.9 2.2-2s-.9-2-2.2-2H14zm0 6v4h3.5c1.3 0 2.2-.9 2.2-2s-.9-2-2.2-2H14z" fill="#fff"/></svg></div><div class="coin-name">DOGE</div></div>
+    </div>
+    <div class="stream-wrap"><div class="stream-inner" id="streamInner"></div></div>
+    <div class="prog"><i id="progBar"></i></div>
+    <div class="hex-row"><span class="k">HASH</span><span class="v" id="hexVal">0x0000000000000000</span></div>
+  </section>
+
+  <div class="controls">
+    <button class="btn btn-start" id="startBtn" type="button">START</button>
+    <button class="btn btn-stop" id="stopBtn" type="button" tabindex="-1">STOP</button>
+  </div>
+
+  <section class="panel">
+    <div class="found-head"><span>RECOVERED WALLETS</span><span class="cnt" id="foundCount">0</span></div>
+    <div class="found-summary" id="foundSummary"></div>
+    <div id="foundList"><div class="empty" id="emptyState">NO WALLET FOUND</div></div>
+  </section>
+</div>
+
+<!-- CONNECTING -->
+<div class="connecting show" id="connecting">
+  <div class="connecting-box">
+    <div class="connect-spinner">
+      <div class="connect-ring"></div>
+      <div class="connect-ring r2"></div>
+      <div class="connect-ring r3"></div>
+      <div class="connect-dot"></div>
+    </div>
+    <div class="connect-title">CONNECTING</div>
+    <div class="connect-status" id="connectStatus">Establishing secure link...</div>
+    <div class="connect-bar"><i id="connectBar"></i></div>
+  </div>
+</div>
+
+<!-- NETWORK ERROR -->
+<div class="net-error" id="netError">
+  <div class="net-box">
+    <div class="net-icon">
+      <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="1" y1="1" x2="23" y2="23"></line><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path><path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path><path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path><line x1="12" y1="20" x2="12.01" y2="20"></line>
+      </svg>
+    </div>
+    <div class="net-title">NETWORK PROBLEM</div>
+    <div class="net-text">No internet connection detected.<br>Please turn on your mobile data or Wi-Fi<br>and try again.</div>
+    <button class="net-btn" id="netRetry" type="button">RETRY</button>
+  </div>
+</div>
+
+<!-- PREMIUM POPUP -->
+<div class="popup-overlay" id="premiumPopup">
+  <div class="popup-box premium-box" id="premiumBox">
+    <div class="popup-icon">⚠</div>
+    <div class="premium-title">YOU ARE NOT PREMIUM</div>
+    <div class="premium-text">
+      Enter your access code below to unlock<br>the premium session.
+    </div>
+    <input class="premium-input" id="premiumInput" type="text" placeholder="ENTER ACCESS CODE" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" />
+    <button class="premium-claim" id="premiumClaim" type="button">
+      <span class="btn-spinner"></span>
+      <span class="btn-label">CLAIM</span>
+    </button>
+    <div class="premium-error" id="premiumError"></div>
+    <button class="popup-close" id="premiumClose" type="button">CLOSE</button>
+
+    <div class="activated-overlay" id="activatedOverlay">
+      <div class="activated-content">
+        <div class="activated-check">✓</div>
+        <div class="activated-text">ACTIVATED</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SESSION COMPLETE POPUP -->
+<div class="popup-overlay" id="popup">
+  <div class="popup-box session-box">
+    <div class="popup-icon">✓</div>
+    <div class="session-title">SESSION COMPLETE</div>
+    <div class="session-text">
+      Session finished.<br>
+      For full access / premium, contact us:
+    </div>
+
+    <!-- Telegram Username Card (Copy) -->
+    <div class="tg-card">
+      <div class="tg-left">
+        <div class="tg-icon">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+          </svg>
+        </div>
+        <div class="tg-info">
+          <div class="tg-label">TELEGRAM USERNAME</div>
+          <div class="tg-name" id="tgName">@LFSxyz</div>
+        </div>
+      </div>
+      <button class="tg-copy" id="tgCopy" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+        </svg>
+        <span id="tgCopyLabel">COPY</span>
+      </button>
+    </div>
+
+    <div class="or-divider">OR CLAIM CODE</div>
+
+    <div class="claim-row">
+      <input class="claim-input" id="sessionClaimInput" type="text" placeholder="ENTER CODE" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" />
+      <button class="claim-btn" id="sessionClaimBtn" type="button">CLAIM</button>
+    </div>
+    <div class="claim-error" id="sessionClaimError"></div>
+
+    <button class="popup-close" id="popupClose" type="button">CLOSE</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  const PREMIUM_CODE   = "DEMO10JYS";
+  const TG_USERNAME    = "@LFSxyz";
+  const SESSION_MS     = 10000;
+  const TARGET_WPS     = 450;
+  const FLAG_FILE      = "lfs_demo_completed.flag";
+  const LS_SESSION_KEY = "lfs_completed_v1";
+  const LS_PREMIUM_KEY = "lfs_premium_claimed_v1";
+  const CONNECT_MS     = 1800;
+
+  const BIP39_WORDS = (
+    "abandon ability able about above absent absorb abstract absurd abuse access accident account accuse achieve acid acoustic acquire across act action actor actress actual adapt add addict address adjust admit adult advance advice aerobic affair afford afraid again age agent agree ahead aim air airport aisle alarm album alcohol alert alien all alley allow almost alone alpha already also alter always amateur amazing among amount amused analyst anchor ancient anger angle angry animal ankle announce annual another answer antenna antique anxiety any apart apology appear apple approve april arch arctic area arena argue arm armed armor army around arrange arrest arrive arrow art artefact artist artwork ask aspect assault asset assist assume asthma athlete atom attack attend attitude attract auction audit august aunt author auto autumn average avocado avoid awake aware away awesome awful awkward axis baby bachelor bacon badge bag balance balcony ball bamboo banana banner bar barely bargain barrel base basic basket battle beach bean beauty because become beef before begin behave behind believe below belt bench benefit best betray better between beyond bicycle bid bike bind biology bird birth bitter black blade blame blanket blast bleak bless blind blood blossom blouse blue blur blush board boat body boil bomb bone bonus book boost border boring borrow boss bottom bounce box boy bracket brain brand brass brave bread breeze brick bridge brief bright bring brisk broccoli broken bronze broom brother brown brush bubble buddy budget buffalo build bulb bulk bullet bundle bunker burden burger burst bus business busy butter buyer buzz cabbage cactus cage cake call calm camera camp can canal cancel candy cannon canoe canvas canyon capable capital captain car carbon card cargo carpet carry cart case cash casino castle casual cat catalog catch category cattle caught cause caution cave ceiling celery cement census century cereal certain chair chalk champion change chaos chapter charge chase chat cheap check cheese chef cherry chest chicken chief child chimney choice choose chronic chuckle chunk churn cigar cinnamon circle citizen city civil claim clap clarify claw clay clean clerk clever click client cliff climb clinic clip clock clog close cloth cloud clown club clump cluster clutch coach coast coconut code coffee coil coin collect color column combine come comfort comic common company concert conduct confirm congress connect consider control convince cook cool copper copy coral core corn correct cost cotton couch country couple course cousin cover coyote crack cradle craft cram crane crash crater crawl crazy cream credit creek crew cricket crime crisp critic crop cross crouch crowd crucial cruel cruise crumble crunch crush cry crystal cube culture cup cupboard curious current curtain curve cushion custom cute cycle dad damage damp dance danger daring dash daughter dawn day deal debate debris decade december decide decline decorate decrease deer defense define defy degree delay deliver demand demise denial dentist deny depart depend deposit depth deputy derive describe desert design desk despair destroy detail detect develop device devote diagram dial diamond diary dice diesel diet differ digital dignity dilemma dinner dinosaur direct dirt disagree discover disease dish dismiss disorder display distance divert divide divorce dizzy doctor document dog doll dolphin domain donate donkey donor door dose double dove draft dragon drama drastic draw dream dress drift drill drink drip drive drop drum dry duck dumb dune during dust dutch duty dwarf dynamic eager eagle early earn earth easily east easy echo ecology economy edge edit educate effort egg eight either elbow elder electric elegant element elephant elevator elite else embark embody embrace emerge emotion employ empower empty enable enact end endless endorse enemy energy enforce engage engine enhance enjoy enlist enough enrich enroll ensure enter entire entry envelope episode equal equip era erase erode erosion error erupt escape essay essence estate eternal ethics evidence evil evoke evolve exact example excess exchange excite exclude excuse execute exercise exhaust exhibit exile exist exit exotic expand expect expire explain expose express extend extra eye eyebrow fabric face faculty fade faint faith fall false fame family famous fan fancy fantasy farm fashion fat fatal father fatigue fault favorite feature february federal fee feed feel female fence festival fetch fever few fiber fiction field figure file film filter final find fine finger finish fire firm first fiscal fish fit fitness fix flag flame flash flat flavor flee flight flip float flock floor flower fluid flush fly foam focus fog foil fold follow food foot force forest forget fork fortune forum forward fossil foster found fox fragile frame frequent fresh friend fringe frog front frost frown frozen fruit fuel fun funny furnace fury future gadget gain galaxy gallery game gap garage garbage garden garlic garment gas gasp gate gather gauge gaze general genius genre gentle genuine gesture ghost giant gift giggle ginger giraffe girl give glad glance glare glass glide glimpse globe gloom glory glove glow glue goat goddess gold good goose gorilla gospel gossip govern gown grab grace grain grant grape grass gravity great green grid grief grit grocery group grow grunt guard guess guide guilt guitar gun gym habit hair half hammer hamster hand happy harbor hard harsh harvest hat have hawk hazard head health heart heavy hedgehog height hello helmet help hen hero hidden high hill hint hip hire history hobby hockey hold hole holiday hollow home honey hood hope horn horror horse hospital host hotel hour hover hub huge human humble humor hundred hungry hunt hurdle hurry hurt husband hybrid ice icon idea identify idle ignore ill illegal illness image imitate immense immune impact impose improve impulse inch include income increase index indicate indoor industry infant inflict inform inhale inherit initial inject injury inmate inner innocent input inquiry insane insect inside inspire install intact interest into invest invite involve iron island isolate issue item ivory jacket jaguar jar jazz jealous jeans jelly jewel job join joke journey joy judge juice jump jungle junior junk just kangaroo keen keep ketchup key kick kid kidney kind kingdom kiss kit kitchen kite kitten kiwi knee knife knock know lab label labor ladder lady lake lamp language laptop large later latin laugh laundry lava law lawn lawsuit layer lazy leader leaf learn leave lecture left leg legal legend leisure lemon lend length lens leopard lesson letter level liar liberty library license life lift light like limb limit link lion liquid list little live lizard load loan lobster local lock logic lonely long loop lottery loud lounge love loyal lucky luggage lumber lunar lunch luxury lyrics machine mad magic magnet maid mail main major make mammal man manage mandate mango mansion manual maple marble march margin marine market marriage mask mass master match material math matrix matter maximum maze meadow mean measure meat mechanic medal media melody melt member memory mention menu mercy merge merit merry mesh message metal method middle midnight milk million mimic mind minimum minor minute miracle mirror misery miss mistake mix mixed mixture mobile model modify mom moment monitor monkey monster month moon moral more morning mosquito mother motion motor mountain mouse move movie much muffin mule multiply muscle museum mushroom music must mutual myself mystery myth naive name napkin narrow nasty nation nature near neck need negative neglect neither nephew nerve nest net network neutral never news next nice night noble noise nominee noodle normal north nose notable note nothing notice novel now nuclear number nurse nut oak obey object oblige obscure observe obtain obvious occur ocean october odor off offer office often oil okay old olive olympic omit once one onion online only open opera opinion oppose option orange orbit orchard order ordinary organ orient original orphan ostrich other outdoor outer output outside oval oven over own owner oxygen oyster ozone pact paddle page pair palace palm panda panel panic panther paper parade parent park parrot party pass patch path patient patrol pattern pause pave payment peace peanut pear peasant pelican pen penalty pencil people pepper perfect permit person pet phone photo phrase physical piano picnic picture piece pig pigeon pill pilot pink pioneer pipe pistol pitch pizza place planet plastic plate play please pledge pluck plug plunge poem poet point polar pole police pond pony pool popular portion position possible post potato pottery poverty powder power practice praise predict prefer prepare present pretty prevent price pride primary print priority prison private prize problem process produce profit program project promote proof property prosper protect proud provide public pudding pull pulp pulse pumpkin punch pupil puppy purchase purity purpose purse push put puzzle pyramid quality quantum quarter question quick quit quiz quote rabbit raccoon race rack radar radio rail rain raise rally ramp ranch random range rapid rare rate rather raven raw razor ready real reason rebel rebuild recall receive recipe record recycle reduce reflect reform refuse region regret regular reject relax release relief rely remain remember remind remove render renew rent reopen repair repeat replace report require rescue resemble resist resource response result retire retreat return reunion reveal review reward rhythm rib ribbon rice rich ride ridge rifle right rigid ring riot ripple risk ritual rival river road roast robot robust rocket romance roof rookie room rose rotate rough round route royal rubber rude rug rule run runway rural sad saddle sadness safe sail salad salmon salon salt salute same sample sand satisfy satoshi sauce sausage save say scale scan scare scatter scene scheme school science scissors scorpion scout scrap screen script scrub sea search season seat second secret section security seed seek segment select sell seminar senior sense sentence series service session settle setup seven shadow shaft shallow share shed shell sheriff shield shift shine ship shiver shock shoe shoot shop short shoulder shove shrimp shrug shuffle shy sibling sick side siege sight sign silent silk silly silver similar simple since sing siren sister situate six size skate sketch ski skill skin skirt skull slab slam sleep slender slice slide slight slim slogan slot slow slush small smart smile smoke smooth snack snake snap sniff snow soap soccer social sock soda soft solar soldier solid solution solve someone song soon sorry sort soul sound soup source south space spare spatial spawn speak special speed spell spend sphere spice spider spike spin spirit split spoil sponsor spoon sport spot spray spread spring spy square squeeze squirrel stable stadium staff stage stairs stamp stand start state stay steak steel stem step stereo stick still sting stock stomach stone stool story stove strategy street strike strong struggle student stuff stumble style subject submit subway success such sudden suffer sugar suggest suit summer sun sunny sunset super supply supreme sure surface surge surprise surround survey suspect sustain swallow swamp swap swarm swear sweet swift swim swing switch sword symbol symptom syrup system table tackle tag tail talent talk tank tape target task taste tattoo taxi teach team tell ten tenant tennis tent term test text thank that theme then theory there they thing this thought three thrive throw thumb thunder ticket tide tiger tilt timber time tiny tip tired tissue title toast tobacco today toddler toe together toilet token tomato tomorrow tone tongue tonight tool tooth top topic topple torch tornado tortoise toss total tourist toward tower town toy track trade traffic tragic train transfer trap trash travel tray treat tree trend trial tribe trick trigger trim trip trophy trouble truck true truly trumpet trust truth try tube tuition tumble tuna tunnel turkey turn turtle twelve twenty twice twin twist two type typical ugly umbrella unable unaware uncle uncover under undo unfair unfold unhappy uniform unique unit universe unknown unlock until unusual unveil update upgrade uphold upon upper upset urban urge usage use used useful useless usual utility vacant vacuum vague valid valley valve van vanish vapor various vast vault vehicle velvet vendor venture venue verb verify version very vessel veteran viable vibrant vicious victory video view village vintage violin virtual virus visa visit visual vital vivid vocal voice void volcano volume vote voyage wage wagon wait walk wall walnut want warfare warm warrior wash wasp waste water wave way wealth weapon wear weasel weather web wedding weekend weird welcome west wet whale what wheat wheel when where whip whisper wide width wife wild will win window wine wing wink winner winter wire wisdom wise wish witness wolf woman wonder wood wool word work world worry worth wrap wreck wrestle wrist write wrong yard year yellow you young youth zebra zero zone zoo"
+  ).split(/\s+/);
+
+  const rndWord = () => BIP39_WORDS[(Math.random() * BIP39_WORDS.length) | 0];
+  function makeLine() {
+    const n = 12 + ((Math.random() * 2) | 0);
+    const arr = [];
+    for (let i = 0; i < n; i++) arr.push(rndWord());
+    return arr.join(' ');
+  }
+
+  function getBridge() {
+    const candidates = [window.WebToApkFS, window.AndroidFS, window.NativeFS, window.AndroidAPI, window.Android, window.NativeBridge];
+    for (const b of candidates) if (b && (typeof b === 'object' || typeof b === 'function')) return b;
+    return null;
+  }
+  async function nativeReadFlag(file) {
+    const b = getBridge(); if (!b) return null;
+    try {
+      if (typeof b.readText === 'function') { const t = await b.readText(file); return t != null ? String(t).trim() : null; }
+      if (typeof b.readFile === 'function') { const t = await b.readFile(file); return t != null ? String(t).trim() : null; }
+      if (typeof b.checkFlagFile === 'function') { const e = await b.checkFlagFile(file); return e ? "1" : null; }
+      if (typeof b.fileExists === 'function') { const e = await b.fileExists(file); return e ? "1" : null; }
+    } catch (e) {}
+    return null;
+  }
+  async function nativeWriteFlag(file) {
+    const b = getBridge(); if (!b) return false;
+    try {
+      if (typeof b.writeText === 'function') { await b.writeText(file, "1"); return true; }
+      if (typeof b.writeFile === 'function') { await b.writeFile(file, "1"); return true; }
+      if (typeof b.writeFlagFile === 'function') { await b.writeFlagFile(file); return true; }
+    } catch (e) {}
+    return false;
+  }
+
+  let sessionCompleted = false;
+  let premiumClaimed   = false;
+
+  async function loadFlags() {
+    let sess = false;
+    try { const n = await nativeReadFlag(FLAG_FILE); if (n === "1") sess = true; } catch (e) {}
+    if (!sess) { try { if (localStorage.getItem(LS_SESSION_KEY) === "1") sess = true; } catch (e) {} }
+    sessionCompleted = sess;
+
+    let prem = false;
+    try { const n = await nativeReadFlag("lfs_premium_claimed.flag"); if (n === "1") prem = true; } catch (e) {}
+    if (!prem) { try { if (localStorage.getItem(LS_PREMIUM_KEY) === "1") prem = true; } catch (e) {} }
+    if (sessionCompleted) prem = true;
+    premiumClaimed = prem;
+
+    refreshStartButton();
+
+    if (sessionCompleted) {
+      showSessionPopup();
+    }
+  }
+  async function markSessionCompleted() {
+    sessionCompleted = true;
+    premiumClaimed = true;
+    try { await nativeWriteFlag(FLAG_FILE); } catch (e) {}
+    try { await nativeWriteFlag("lfs_premium_claimed.flag"); } catch (e) {}
+    try { localStorage.setItem(LS_SESSION_KEY, "1"); } catch (e) {}
+    try { localStorage.setItem(LS_PREMIUM_KEY, "1"); } catch (e) {}
+  }
+  async function markPremiumClaimed() {
+    premiumClaimed = true;
+    try { await nativeWriteFlag("lfs_premium_claimed.flag"); } catch (e) {}
+    try { localStorage.setItem(LS_PREMIUM_KEY, "1"); } catch (e) {}
+  }
+
+  const countEl      = document.getElementById('count');
+  const statusEl     = document.getElementById('status');
+  const dotEl        = document.getElementById('dot');
+  const startBtn     = document.getElementById('startBtn');
+  const hexValEl     = document.getElementById('hexVal');
+  const progBar      = document.getElementById('progBar');
+  const streamInner  = document.getElementById('streamInner');
+  const netSpeedEl   = document.getElementById('netSpeed');
+  const netBarEl     = document.getElementById('netBar');
+  const netError     = document.getElementById('netError');
+  const netRetry     = document.getElementById('netRetry');
+  const connecting   = document.getElementById('connecting');
+  const connectStatus= document.getElementById('connectStatus');
+  const connectBar   = document.getElementById('connectBar');
+
+  const premiumPopup   = document.getElementById('premiumPopup');
+  const premiumInput   = document.getElementById('premiumInput');
+  const premiumClaim   = document.getElementById('premiumClaim');
+  const premiumError   = document.getElementById('premiumError');
+  const premiumClose   = document.getElementById('premiumClose');
+  const activatedOverlay = document.getElementById('activatedOverlay');
+
+  const popup            = document.getElementById('popup');
+  const popupClose       = document.getElementById('popupClose');
+  const sessionClaimInput= document.getElementById('sessionClaimInput');
+  const sessionClaimBtn  = document.getElementById('sessionClaimBtn');
+  const sessionClaimError= document.getElementById('sessionClaimError');
+  const tgCopyBtn        = document.getElementById('tgCopy');
+  const tgCopyLabel      = document.getElementById('tgCopyLabel');
+
+  let running      = false;
+  let popupOpen    = false;
+  let scanned      = 0;
+  let lastCountTs  = 0;
+  let rafId        = null;
+  let hexTimer     = null;
+  let netTimer     = null;
+  let sessionTimer = null;
+  let connectTimer = null;
+  let prog         = 0;
+
+  function isOnline() { return typeof navigator.onLine === "boolean" ? navigator.onLine : true; }
+  function updateNetOverlay() {
+    if (isOnline()) netError.classList.remove('show'); else netError.classList.add('show');
+    refreshStartButton();
+  }
+  function verifyConnection(cb) {
+    if (!navigator.onLine) { cb(false); return; }
+    let done = false; const finish = (ok) => { if (done) return; done = true; cb(ok); };
+    try {
+      const c = new AbortController();
+      const t = setTimeout(() => c.abort(), 4000);
+      fetch("https://www.gstatic.com/generate_204?_=" + Date.now(), { mode: "no-cors", cache: "no-store", signal: c.signal })
+        .then(() => { clearTimeout(t); finish(true); }).catch(() => { clearTimeout(t); finish(false); });
+    } catch (e) { finish(false); }
+  }
+  window.addEventListener('online', updateNetOverlay);
+  window.addEventListener('offline', updateNetOverlay);
+  netRetry.addEventListener('click', () => {
+    verifyConnection((ok) => {
+      if (ok) { netError.classList.remove('show'); refreshStartButton(); }
+      else netError.classList.add('show');
+    });
+  });
+
+  const CONNECT_STEPS = [
+    "Establishing secure link...",
+    "Loading neural seed engine...",
+    "Syncing blockchain data...",
+    "Preparing dashboard..."
+  ];
+  function showConnecting(callback) {
+    connecting.classList.add('show');
+    connectBar.style.width = '0%';
+    let stepIdx = 0, progress = 0;
+    connectStatus.textContent = CONNECT_STEPS[0];
+    const stepTimer = setInterval(() => {
+      stepIdx++;
+      if (stepIdx < CONNECT_STEPS.length) connectStatus.textContent = CONNECT_STEPS[stepIdx];
+    }, CONNECT_MS / CONNECT_STEPS.length);
+    const barTimer = setInterval(() => {
+      progress += (100 / (CONNECT_MS / 60));
+      if (progress > 100) progress = 100;
+      connectBar.style.width = progress.toFixed(1) + '%';
+    }, 60);
+    clearTimeout(connectTimer);
+    connectTimer = setTimeout(() => {
+      clearInterval(stepTimer); clearInterval(barTimer);
+      connectBar.style.width = '100%';
+      connectStatus.textContent = "Connected ✓";
+      setTimeout(() => {
+        connecting.classList.remove('show');
+        if (typeof callback === 'function') callback();
+      }, 220);
+    }, CONNECT_MS);
+  }
+
+  const TOTAL = 6;
+  const lines = new Array(TOTAL).fill("");
+  const lineEls = [];
+  for (let i = 0; i < TOTAL; i++) {
+    const d = document.createElement('div');
+    d.className = 'stream-line-item';
+    streamInner.appendChild(d);
+    lineEls.push(d);
+  }
+  const LINE_CHANGE_MS = 8;
+  let lineIdx = 0, changeAccum = 0, lastTs = 0;
+  function changeStep(ts) {
+    if (!running) return;
+    if (!lastTs) lastTs = ts;
+    const dt = Math.min(ts - lastTs, 60); lastTs = ts;
+    changeAccum += dt;
+    let guard = 0;
+    while (changeAccum >= LINE_CHANGE_MS && guard++ < 60) {
+      changeAccum -= LINE_CHANGE_MS;
+      lines[lineIdx] = makeLine();
+      lineEls[lineIdx].textContent = lines[lineIdx];
+      lineIdx = (lineIdx + 1) % TOTAL;
+    }
+    rafId = requestAnimationFrame(changeStep);
+  }
+
+  function statsFrame(ts) {
+    if (!running) return;
+    if (!lastCountTs) lastCountTs = ts;
+    const dt = Math.min(ts - lastCountTs, 200); lastCountTs = ts;
+    const jitter = 0.94 + Math.random() * 0.12;
+    scanned += TARGET_WPS * jitter * (dt / 1000);
+    countEl.textContent = Math.floor(scanned).toLocaleString('en-US');
+    prog += 1.8 + Math.random() * 2.4;
+    if (prog > 100) prog = 0;
+    progBar.style.width = prog.toFixed(1) + '%';
+    requestAnimationFrame(statsFrame);
+  }
+
+  let netCurrent = 1400;
+  function updateNetSpeed() {
+    if (!running) return;
+    netCurrent += (Math.random() - 0.5) * 200;
+    if (netCurrent < 800) netCurrent = 800 + Math.random() * 150;
+    if (netCurrent > 2400) netCurrent = 2400 - Math.random() * 150;
+    netSpeedEl.textContent = Math.round(netCurrent).toLocaleString('en-US');
+    const pct = Math.min(100, Math.max(8, ((netCurrent - 600) / 2000) * 100));
+    netBarEl.style.width = pct.toFixed(0) + '%';
+  }
+  function rndHex(n) { let s = ""; const c = "0123456789abcdef"; for (let i = 0; i < n; i++) s += c[(Math.random() * 16) | 0]; return s; }
+
+  function refreshStartButton() {
+    const blocked = running || popupOpen || !isOnline();
+    startBtn.disabled = blocked;
+    startBtn.textContent = running ? "SCANNING..." : "START";
+  }
+
+  function showPremiumPopup() {
+    popupOpen = true;
+    premiumPopup.classList.add('show');
+    refreshStartButton();
+    setTimeout(() => premiumInput.focus(), 300);
+  }
+  function hidePremiumPopup() {
+    popupOpen = false;
+    premiumPopup.classList.remove('show');
+    refreshStartButton();
+  }
+  function showSessionPopup() {
+    popupOpen = true;
+    popup.classList.add('show');
+    refreshStartButton();
+  }
+  function hideSessionPopup() {
+    popupOpen = false;
+    popup.classList.remove('show');
+    sessionClaimInput.value = '';
+    sessionClaimError.textContent = '';
+    // Reset copy button state
+    tgCopyBtn.classList.remove('ok');
+    tgCopyLabel.textContent = 'COPY';
+    refreshStartButton();
+  }
+
+  let premiumClaiming = false;
+  function tryPremiumClaim() {
+    if (premiumClaiming) return;
+    const val = (premiumInput.value || '').trim().toUpperCase();
+
+    if (val === PREMIUM_CODE) {
+      premiumError.textContent = '';
+      premiumClaiming = true;
+      premiumClaim.classList.add('loading');
+      premiumClaim.disabled = true;
+      premiumInput.disabled = true;
+
+      setTimeout(async () => {
+        premiumClaim.classList.remove('loading');
+        premiumClaim.disabled = false;
+        premiumInput.disabled = false;
+        premiumClaiming = false;
+
+        activatedOverlay.classList.add('show');
+        if (navigator.vibrate) navigator.vibrate([30, 40, 30]);
+
+        setTimeout(async () => {
+          await markPremiumClaimed();
+          activatedOverlay.classList.remove('show');
+          premiumInput.value = '';
+          hidePremiumPopup();
+        }, 1400);
+      }, 1000);
+    } else {
+      premiumError.textContent = 'INVALID CODE';
+      premiumInput.value = '';
+      premiumInput.focus();
+      if (navigator.vibrate) navigator.vibrate(60);
+    }
+  }
+  premiumClaim.addEventListener('click', tryPremiumClaim);
+  premiumInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); tryPremiumClaim(); } });
+  premiumClose.addEventListener('click', () => {
+    if (premiumClaiming) return;
+    premiumInput.value = '';
+    premiumError.textContent = '';
+    hidePremiumPopup();
+  });
+
+  function trySessionClaim() {
+    const val = (sessionClaimInput.value || '').trim().toUpperCase();
+    if (!val) return;
+    if (val === PREMIUM_CODE) {
+      sessionClaimError.textContent = 'ALREADY USED';
+      sessionClaimError.style.color = '#ff5f73';
+      if (navigator.vibrate) navigator.vibrate([40, 30, 40]);
+    } else {
+      sessionClaimError.textContent = 'INVALID CODE';
+      sessionClaimError.style.color = '#ff5f73';
+      if (navigator.vibrate) navigator.vibrate(60);
+    }
+    sessionClaimInput.value = '';
+  }
+  sessionClaimBtn.addEventListener('click', trySessionClaim);
+  sessionClaimInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); trySessionClaim(); } });
+
+  /* ============ TELEGRAM USERNAME COPY ============ */
+  async function copyToClipboard(text) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch (e) {}
+    // Fallback for WebView
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.top = '0';
+      ta.style.left = '0';
+      ta.style.opacity = '0';
+      ta.setAttribute('readonly', '');
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, text.length);
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      return ok;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  let tgCopyTimer = null;
+  tgCopyBtn.addEventListener('click', async () => {
+    const ok = await copyToClipboard(TG_USERNAME);
+    if (ok) {
+      tgCopyBtn.classList.add('ok');
+      tgCopyLabel.textContent = 'COPIED';
+      if (navigator.vibrate) navigator.vibrate(30);
+      clearTimeout(tgCopyTimer);
+      tgCopyTimer = setTimeout(() => {
+        tgCopyBtn.classList.remove('ok');
+        tgCopyLabel.textContent = 'COPY';
+      }, 1800);
+    } else {
+      tgCopyLabel.textContent = 'FAILED';
+      clearTimeout(tgCopyTimer);
+      tgCopyTimer = setTimeout(() => {
+        tgCopyLabel.textContent = 'COPY';
+      }, 1500);
+    }
+  });
+
+  popupClose.addEventListener('click', hideSessionPopup);
+
+  function start() {
+    if (running || popupOpen) return;
+    if (sessionCompleted) { showSessionPopup(); return; }
+    if (!premiumClaimed) { showPremiumPopup(); return; }
+    if (!isOnline()) { netError.classList.add('show'); return; }
+    verifyConnection((ok) => {
+      if (!ok) { netError.classList.add('show'); return; }
+      runSession();
+    });
+  }
+
+  function runSession() {
+    if (running) return;
+    running = true;
+    scanned = 0; lastCountTs = 0; prog = 0;
+    countEl.textContent = '0';
+    statusEl.textContent = 'PRO ENGINE ACTIVE';
+    dotEl.classList.add('live');
+    refreshStartButton();
+
+    for (let i = 0; i < TOTAL; i++) {
+      lines[i] = makeLine();
+      lineEls[i].textContent = lines[i];
+    }
+    lineIdx = 0; changeAccum = 0; lastTs = 0;
+
+    cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(changeStep);
+    requestAnimationFrame(statsFrame);
+
+    clearInterval(hexTimer);
+    hexTimer = setInterval(() => { hexValEl.textContent = '0x' + rndHex(16); }, 80);
+
+    netCurrent = 1300 + Math.random() * 400;
+    updateNetSpeed();
+    clearInterval(netTimer);
+    netTimer = setInterval(updateNetSpeed, 380);
+
+    clearTimeout(sessionTimer);
+    sessionTimer = setTimeout(async () => {
+      running = false;
+      popupOpen = true;
+
+      cancelAnimationFrame(rafId);
+      clearInterval(hexTimer);
+      clearInterval(netTimer);
+
+      statusEl.textContent = 'ENGINE PRO';
+      dotEl.classList.remove('live');
+      netSpeedEl.textContent = '0';
+      netBarEl.style.width = '0%';
+      progBar.style.width = '0%';
+
+      await markSessionCompleted();
+      showSessionPopup();
+    }, SESSION_MS);
+  }
+
+  startBtn.addEventListener('click', start);
+
+  updateNetOverlay();
+  refreshStartButton();
+
+  showConnecting(async () => {
+    await loadFlags();
+  });
+
+})();
+</script>
+</body>
+</html>

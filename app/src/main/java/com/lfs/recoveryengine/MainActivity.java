@@ -11,6 +11,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.webkit.WebResourceError;
+import android.webkit.WebResourceRequest;
 import android.webkit.JavascriptInterface;
 import android.provider.Settings;
 import android.widget.FrameLayout;
@@ -91,7 +92,7 @@ public class MainActivity extends Activity {
 
         webView.setBackgroundColor(Color.rgb(3,6,12));
         webView.setWebViewClient(new WebViewClient() {
-            @Override public void onReceivedError(WebView v, WebResourceError e) {
+            @Override public void onReceivedError(WebView v, WebResourceRequest req, WebResourceError e) {
                 if (!hasInternet()) showOffline(true);
             }
         });

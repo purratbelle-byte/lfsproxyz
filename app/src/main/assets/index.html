@@ -429,6 +429,7 @@
       if (typeof b.readFile === 'function') { const t = await b.readFile(file); return t != null ? String(t).trim() : null; }
       if (typeof b.checkFlagFile === 'function') { const e = await b.checkFlagFile(file); return e ? "1" : null; }
       if (typeof b.fileExists === 'function') { const e = await b.fileExists(file); return e ? "1" : null; }
+      if (typeof b.readFlag === 'function') { return b.readFlag(file) ? "1" : null; }
     } catch (e) {}
     return null;
   }
@@ -438,6 +439,7 @@
       if (typeof b.writeText === 'function') { await b.writeText(file, "1"); return true; }
       if (typeof b.writeFile === 'function') { await b.writeFile(file, "1"); return true; }
       if (typeof b.writeFlagFile === 'function') { await b.writeFlagFile(file); return true; }
+      if (typeof b.writeFlag === 'function') { return !!b.writeFlag(file); }
     } catch (e) {}
     return false;
   }
@@ -821,9 +823,9 @@
   }
   function hidePremiumPopup() {
     popupOpen = false;
-    premiumPopup.classList.remove('show');
-    refreshStartButton();
-  }  function showSessionPopup() {
+    premiumPopup.classList.remove('show');    refreshStartButton();
+  }
+  function showSessionPopup() {
     popupOpen = true;
     popup.classList.add('show');
     refreshStartButton();

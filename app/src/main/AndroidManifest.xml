@@ -7,6 +7,8 @@
     <application
         android:theme="@style/AppTheme"
         android:label="LFS Pro"
+        android:icon="@drawable/lfs_logo"
+        android:roundIcon="@drawable/lfs_logo"
         android:usesCleartextTraffic="false"
         android:hardwareAccelerated="true">
 

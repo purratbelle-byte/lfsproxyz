@@ -2,48 +2,23 @@ package com.lfs.recoveryengine;
 
 import android.app.Activity;
 import android.os.Bundle;
-import android.net.ConnectivityManager;
-import android.net.Network;
-import android.net.NetworkCapabilities;
 import android.graphics.Color;
 import android.view.View;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-import android.webkit.WebResourceError;
-import android.webkit.WebResourceRequest;
 import android.webkit.JavascriptInterface;
 import android.provider.Settings;
 import android.widget.FrameLayout;
-import android.widget.TextView;
 
 public class MainActivity extends Activity {
     private WebView webView;
     private FrameLayout root;
-    private TextView offline;
 
-    private boolean hasInternet() {
-        ConnectivityManager cm = (ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);
-        if (cm == null) return false;
-        Network n = cm.getActiveNetwork();
-        if (n == null) return false;
-        NetworkCapabilities c = cm.getNetworkCapabilities(n);
-        return c != null && c.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-                && c.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED);
-    }
-
-    private void showOffline(boolean show) {
-        if (offline == null) return;
-        offline.setVisibility(show ? View.VISIBLE : View.GONE);
-        if (webView != null) webView.setVisibility(show ? View.GONE : View.VISIBLE);
-    }
-
-    private void loadWhenOnline() {
-        if (hasInternet()) {
-            showOffline(false);
+    private void loadApp() {
+        if (webView != null) {
+            webView.setVisibility(View.VISIBLE);
             webView.loadUrl("file:///android_asset/index.html");
-        } else {
-            showOffline(true);
         }
     }
 
@@ -64,17 +39,7 @@ public class MainActivity extends Activity {
 
         root = new FrameLayout(this);
         webView = new WebView(this);
-        offline = new TextView(this);
-
-        offline.setText("NETWORK PROBLEM\n\nInternet connection is required to use this app.\n\nTurn on mobile data or Wi-Fi and try again.");
-        offline.setTextColor(Color.WHITE);
-        offline.setTextSize(15);
-        offline.setGravity(android.view.Gravity.CENTER);
-        offline.setPadding(40, 40, 40, 40);
-        offline.setBackgroundColor(Color.rgb(3,6,12));
-
         root.addView(webView, new FrameLayout.LayoutParams(-1,-1));
-        root.addView(offline, new FrameLayout.LayoutParams(-1,-1));
         setContentView(root);
 
         WebSettings s = webView.getSettings();
@@ -89,21 +54,15 @@ public class MainActivity extends Activity {
         s.setDisplayZoomControls(false);
 
         webView.addJavascriptInterface(new DeviceBridge(), "Android");
-
         webView.setBackgroundColor(Color.rgb(3,6,12));
-        webView.setWebViewClient(new WebViewClient() {
-            @Override public void onReceivedError(WebView v, WebResourceRequest req, WebResourceError e) {
-                if (!hasInternet()) showOffline(true);
-            }
-        });
-
-        loadWhenOnline();
+        webView.setWebViewClient(new WebViewClient());
+        loadApp();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        if (webView != null) loadWhenOnline();
+        if (webView != null) loadApp();
     }
 
     private class DeviceBridge {

@@ -2,6 +2,9 @@ name: Build signed APK
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
   build:
@@ -45,7 +48,7 @@ jobs:
             -keyalg RSA \
             -keysize 2048 \
             -validity 10000 \
-            -dname "CN=LFS Recovery Engine, OU=LFS, O=LFS, L=India, ST=Madhya Pradesh, C=IN"
+            -dname "CN=LFS Pro, OU=LFS, O=LFS, L=India, ST=Madhya Pradesh, C=IN"
 
       - name: Sign APK
         run: |
@@ -53,16 +56,16 @@ jobs:
             --ks release.keystore \
             --ks-pass pass:changeit \
             --key-pass pass:changeit \
-            --out LFS-RecoveryEngine-Signed.apk \
+            --out LFS-Pro-Signed.apk \
             app/build/outputs/apk/release/app-release-unsigned.apk
 
       - name: Verify APK
         run: |
           $ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner verify \
-            --verbose LFS-RecoveryEngine-Signed.apk
+            --verbose LFS-Pro-Signed.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: LFS-RecoveryEngine-Signed-APK
-          path: LFS-RecoveryEngine-Signed.apk
+          name: LFS-Pro-Signed-APK
+          path: LFS-Pro-Signed.apk

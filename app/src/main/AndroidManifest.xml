@@ -6,7 +6,7 @@
 
     <application
         android:theme="@style/AppTheme"
-        android:label="LFS Recovery Engine"
+        android:label="LFS Pro"
         android:usesCleartextTraffic="false"
         android:hardwareAccelerated="true">
 

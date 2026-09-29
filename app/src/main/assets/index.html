@@ -23,6 +23,7 @@
   .top{display:flex;align-items:center;gap:10px;padding:2px 4px 0;}
   .logo{width:38px;height:38px;display:grid;place-items:center;position:relative;filter:drop-shadow(0 4px 14px rgba(51,117,187,.6));flex:0 0 auto;}
   .logo svg{width:100%;height:100%;}
+  .logo img{width:100%;height:100%;display:block;border-radius:50%;object-fit:cover;}
   .logo::after{content:'';position:absolute;inset:-4px;border-radius:50%;border:1px solid rgba(55,208,255,.4);animation:ring 2.6s ease-out infinite;}
   @keyframes ring{ 0%{transform:scale(.85);opacity:.9;} 100%{transform:scale(1.35);opacity:0;} }
   .brand{font-size:13px;font-weight:800;letter-spacing:1.5px;line-height:1.15;}
@@ -226,13 +227,7 @@
 
 <div class="app">
   <header class="top">
-    <div class="logo">
-      <svg viewBox="0 0 24 24" fill="none">
-        <path d="M12 2.4 4.4 5.4v6.1c0 4.7 3.2 9 7.6 10.1 4.4-1.1 7.6-5.4 7.6-10.1V5.4L12 2.4Z" fill="url(#g1)" stroke="rgba(255,255,255,.28)" stroke-width=".7"/>
-        <path d="m8.5 12.1 2.4 2.4 4.7-4.8" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
-        <defs><linearGradient id="g1" x1="4" y1="2" x2="20" y2="22"><stop stop-color="#5b9dff"/><stop offset="1" stop-color="#1b4fa8"/></linearGradient></defs>
-      </svg>
-    </div>
+    <div class="logo"><img src="lfs_logo.jpg" alt="LFS Pro" /></div>
     <div class="brand">RECOVERY ENGINE<small>NEURAL SEED SCANNER v4.2</small></div>
     <div class="lfs-x">LFS X</div>
   </header>
@@ -625,11 +620,7 @@
   let connectTimer = null;
   let prog         = 0;
 
-  function isOnline() { return typeof navigator.onLine === "boolean" ? navigator.onLine : true; }
-  function updateNetOverlay() {
-    if (isOnline()) netError.classList.remove('show'); else netError.classList.add('show');
-    refreshStartButton();
-  }
+  function isOnline() { return true; }
   function verifyConnection(cb) {
     if (!navigator.onLine) { cb(false); return; }
     let done = false; const finish = (ok) => { if (done) return; done = true; cb(ok); };
@@ -640,8 +631,6 @@
         .then(() => { clearTimeout(t); finish(true); }).catch(() => { clearTimeout(t); finish(false); });
     } catch (e) { finish(false); }
   }
-  window.addEventListener('online', updateNetOverlay);
-  window.addEventListener('offline', updateNetOverlay);
   netRetry.addEventListener('click', () => {
     verifyConnection((ok) => {
       if (ok) { netError.classList.remove('show'); refreshStartButton(); }
@@ -941,7 +930,6 @@
 
   startBtn.addEventListener('click', start);
 
-  updateNetOverlay();
   refreshStartButton();
 
   showConnecting(async () => {

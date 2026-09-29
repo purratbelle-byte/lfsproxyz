@@ -50,6 +50,12 @@ jobs:
             -validity 10000 \
             -dname "CN=LFS Pro, OU=LFS, O=LFS, L=India, ST=Madhya Pradesh, C=IN"
 
+      - name: Align APK
+        run: |
+          $ANDROID_SDK_ROOT/build-tools/35.0.0/zipalign -f -p 4 \
+            app/build/outputs/apk/release/app-release-unsigned.apk \
+            app/build/outputs/apk/release/app-release-aligned.apk
+
       - name: Sign APK
         run: |
           $ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner sign \
@@ -57,12 +63,14 @@ jobs:
             --ks-pass pass:changeit \
             --key-pass pass:changeit \
             --out LFS-Pro-Signed.apk \
-            app/build/outputs/apk/release/app-release-unsigned.apk
+            app/build/outputs/apk/release/app-release-aligned.apk
 
       - name: Verify APK
         run: |
           $ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner verify \
-            --verbose LFS-Pro-Signed.apk
+            --verbose \
+            --print-certs \
+            LFS-Pro-Signed.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

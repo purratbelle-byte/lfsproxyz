@@ -12,10 +12,13 @@ import android.webkit.WebViewClient;
 import android.webkit.JavascriptInterface;
 import android.provider.Settings;
 import android.widget.FrameLayout;
+import android.content.SharedPreferences;
+import java.security.MessageDigest;
 
 public class MainActivity extends Activity {
     private WebView webView;
     private FrameLayout root;
+    private SharedPreferences prefs;
 
     private void loadApp() {
         if (webView != null) {
@@ -27,6 +30,8 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
+
+        prefs = getSharedPreferences("lfs_flags", MODE_PRIVATE);
 
         getWindow().setStatusBarColor(Color.rgb(3,6,12));
         getWindow().setNavigationBarColor(Color.rgb(3,6,12));
@@ -75,6 +80,31 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public String sha256(String value) {
+            try {
+                MessageDigest md = MessageDigest.getInstance("SHA-256");
+                byte[] digest = md.digest((value == null ? "" : value).getBytes("UTF-8"));
+                StringBuilder sb = new StringBuilder(digest.length * 2);
+                for (byte b : digest) sb.append(String.format("%02x", b & 0xff));
+                return sb.toString();
+            } catch (Exception e) {
+                return "";
+            }
+        }
+
+        @JavascriptInterface
+        public boolean readFlag(String file) {
+            if (file == null) return false;
+            return prefs.getBoolean(file, false);
+        }
+
+        @JavascriptInterface
+        public boolean writeFlag(String file) {
+            if (file == null) return false;
+            return prefs.edit().putBoolean(file, true).commit();
+        }
+
+        @JavascriptInterface
         public boolean isInternetAvailable() {
             try {
                 ConnectivityManager cm = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
@@ -82,10 +112,14 @@ public class MainActivity extends Activity {
                 if (network == null) return false;
                 NetworkCapabilities caps = cm.getNetworkCapabilities(network);
                 if (caps == null) return false;
-                return caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
-                        || caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
-                        || caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
-                        || caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN);
+
+                boolean hasTransport =
+                        caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+                        caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
+                        caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) ||
+                        caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN);
+
+                return hasTransport && caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET);
             } catch (Exception e) {
                 return false;
             }

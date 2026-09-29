@@ -3,6 +3,8 @@ package com.lfs.recoveryengine;
 import android.app.Activity;
 import android.os.Bundle;
 import android.graphics.Color;
+import android.net.ConnectivityManager;
+import android.net.NetworkCapabilities;
 import android.view.View;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -70,6 +72,23 @@ public class MainActivity extends Activity {
         public String getDeviceId() {
             String id = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
             return id == null ? "" : id;
+        }
+
+        @JavascriptInterface
+        public boolean isInternetAvailable() {
+            try {
+                ConnectivityManager cm = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+                android.net.Network network = cm.getActiveNetwork();
+                if (network == null) return false;
+                NetworkCapabilities caps = cm.getNetworkCapabilities(network);
+                if (caps == null) return false;
+                return caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+                        || caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
+                        || caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
+                        || caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN);
+            } catch (Exception e) {
+                return false;
+            }
         }
     }
 

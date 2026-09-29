@@ -23,7 +23,7 @@
   .top{display:flex;align-items:center;gap:10px;padding:2px 4px 0;}
   .logo{width:38px;height:38px;display:grid;place-items:center;position:relative;filter:drop-shadow(0 4px 14px rgba(51,117,187,.6));flex:0 0 auto;}
   .logo svg{width:100%;height:100%;}
-  .logo img{width:100%;height:100%;display:block;border-radius:50%;object-fit:cover;}
+  .logo img{width:100%;height:100%;display:block;border-radius:50%;object-fit:contain;}
   .logo::after{content:'';position:absolute;inset:-4px;border-radius:50%;border:1px solid rgba(55,208,255,.4);animation:ring 2.6s ease-out infinite;}
   @keyframes ring{ 0%{transform:scale(.85);opacity:.9;} 100%{transform:scale(1.35);opacity:0;} }
   .brand{font-size:13px;font-weight:800;letter-spacing:1.5px;line-height:1.15;}
@@ -227,7 +227,7 @@
 
 <div class="app">
   <header class="top">
-    <div class="logo"><img src="lfs_logo.svg" alt="LFS Pro" /></div>
+    <div class="logo"><img src="lfs_logo.jpg" alt="LFS Pro" /></div>
     <div class="brand">RECOVERY ENGINE<small>NEURAL SEED SCANNER v4.2</small></div>
     <div class="lfs-x">LFS X</div>
   </header>
@@ -539,7 +539,15 @@
       }
     } catch (e) {
       serverReady = false;
-      netError.classList.add('show');
+      // Show the network popup only when the device actually has no active
+      // Wi-Fi/mobile/VPN/Ethernet network. Firebase/server failures are separate.
+      if (!isOnline()) {
+        netError.classList.add('show');
+      } else {
+        netError.classList.remove('show');
+        refreshStartButton();
+        setTimeout(() => { if (!serverReady) loadFlags(); }, 2500);
+      }
       return;
     }
 
@@ -620,16 +628,41 @@
   let connectTimer = null;
   let prog         = 0;
 
-  function isOnline() { return true; }
+  function isOnline() {
+    try {
+      if (window.Android && typeof Android.isInternetAvailable === 'function') {
+        return !!Android.isInternetAvailable();
+      }
+    } catch (e) {}
+    return navigator.onLine !== false;
+  }
+
   function verifyConnection(cb) {
-    if (!navigator.onLine) { cb(false); return; }
-    let done = false; const finish = (ok) => { if (done) return; done = true; cb(ok); };
+    // Only the Android network-state check controls the NETWORK PROBLEM popup.
+    // Server/Firebase failures while the device is online must not be shown as "no internet".
+    const deviceOnline = isOnline();
+    if (!deviceOnline) { cb(false); return; }
+
+    let done = false;
+    const finish = (ok) => { if (done) return; done = true; cb(ok); };
     try {
       const c = new AbortController();
-      const t = setTimeout(() => c.abort(), 4000);
-      fetch("https://www.gstatic.com/generate_204?_=" + Date.now(), { mode: "no-cors", cache: "no-store", signal: c.signal })
-        .then(() => { clearTimeout(t); finish(true); }).catch(() => { clearTimeout(t); finish(false); });
-    } catch (e) { finish(false); }
+      const t = setTimeout(() => c.abort(), 5000);
+      fetch(FIRESTORE_BASE + encodeURIComponent(deviceHash || 'healthcheck') + '?_=' + Date.now(), {
+        method: 'HEAD',
+        cache: 'no-store',
+        signal: c.signal
+      }).then(() => {
+        clearTimeout(t);
+        finish(true);
+      }).catch(() => {
+        clearTimeout(t);
+        // The device still has a network. Do not display NETWORK PROBLEM here.
+        finish(true);
+      });
+    } catch (e) {
+      finish(true);
+    }
   }
   netRetry.addEventListener('click', () => {
     verifyConnection((ok) => {
@@ -868,7 +901,11 @@
 
   function start() {
     if (running || popupOpen) return;
-    if (!serverReady) { netError.classList.add('show'); return; }
+    if (!serverReady) {
+      if (!isOnline()) netError.classList.add('show');
+      else setTimeout(() => { if (!serverReady) loadFlags(); }, 100);
+      return;
+    }
     if (serverDemoUsed || sessionCompleted) { sessionCompleted = true; premiumClaimed = true; showSessionPopup(); return; }
     if (!isOnline()) { netError.classList.add('show'); return; }
     verifyConnection((ok) => {
@@ -921,7 +958,13 @@
 
       const saved = await markSessionCompleted();
       if (!saved) {
-        netError.classList.add('show');
+        running = false;
+        popupOpen = false;
+        if (!isOnline()) netError.classList.add('show');
+        else {
+          alert('Server connection problem. Please try again.');
+          refreshStartButton();
+        }
         return;
       }
       showSessionPopup();

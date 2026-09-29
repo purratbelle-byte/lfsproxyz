@@ -10,6 +10,7 @@ Included:
 - Fullscreen immersive UI
 - Offline "NETWORK PROBLEM" screen
 - GitHub Actions workflow that builds and signs an APK
+- LFS Pro one-time demo/device-lock support
 
 IMPORTANT:
 The workflow creates a temporary signing key. For an APK that you will distribute long-term, replace this with your own protected keystore/secrets.

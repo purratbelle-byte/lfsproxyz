@@ -959,6 +959,14 @@
     if (!isOnline()) { netError.classList.add('show'); return; }
     if (!serverReady) { showServerError("Secure demo verification is temporarily unavailable.<br>Please try again."); return; }
 
+    // Keep the original premium gate: first Start opens the existing
+    // "YOU ARE NOT PREMIUM" popup. The 10-second demo starts only
+    // after the access code has been claimed.
+    if (!premiumClaimed) {
+      showPremiumPopup();
+      return;
+    }
+
     verifyConnection((ok) => {
       if (!ok) { netError.classList.add('show'); return; }
       runSession();
